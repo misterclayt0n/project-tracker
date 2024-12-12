@@ -2,11 +2,18 @@ use clap::{Parser, Subcommand};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::OpenOptions,
-    io::{Read, Write},
+    env, fs::{self, OpenOptions}, io::{Read, Write}, path::PathBuf
 };
 
-const FILE_PATH: &str = "data.json";
+fn get_data_file_path() -> PathBuf {
+    let home_dir = env::var("HOME").expect("Could not find $HOME environment variable");
+
+    let config_dir = PathBuf::from(home_dir).join(".config/project-tracker");
+
+    fs::create_dir_all(&config_dir).expect("Failed to create config directory");
+
+    config_dir.join("data.json")
+}
 
 #[derive(Parser)]
 #[command(name = "Project Tracker")]
@@ -85,11 +92,13 @@ fn add_project(name: &str) {
 }
 
 fn load_data() -> Vec<Project> {
+    let data_file = get_data_file_path();
+
     let mut file = OpenOptions::new()
         .read(true)
         .write(true)
         .create(true)
-        .open(FILE_PATH)
+        .open(&data_file)
         .unwrap();
 
     let mut content = String::new();
@@ -104,12 +113,14 @@ fn load_data() -> Vec<Project> {
 }
 
 fn save_data(data: &Vec<Project>) {
+    let data_file = get_data_file_path();
+
     let content = serde_json::to_string_pretty(data).expect("Unable to serialize data.");
 
     let mut file = OpenOptions::new()
         .write(true)
         .truncate(true)
-        .open(FILE_PATH)
+        .open(&data_file)
         .expect("Unable to open data file.");
 
     file.write_all(content.as_bytes())
