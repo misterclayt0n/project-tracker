@@ -2,7 +2,10 @@ use clap::{Parser, Subcommand};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::{
-    env, fs::{self, OpenOptions}, io::{Read, Write}, path::PathBuf
+    env,
+    fs::{self, OpenOptions},
+    io::{Read, Write},
+    path::PathBuf,
 };
 
 fn get_data_file_path() -> PathBuf {
@@ -38,9 +41,23 @@ enum Commands {
         description: String,
     },
     /// List all tasks in a project.
-    ListTasks { project: String },
+    ListTasks {
+        project: String,
+    },
     /// Mark a task as complete
-    CompleteTask { project: String, task_id: u32 },
+    CompleteTask {
+        project: String,
+        task_id: u32,
+    },
+    /// Delete a project
+    DeleteProject {
+        project: String,
+    },
+    /// Delete a task from a projectg
+    DeleteTask {
+        project: String,
+        task_id: u32,
+    },
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -68,6 +85,8 @@ fn main() {
         }) => add_task(&project, &description),
         Some(Commands::ListTasks { project }) => list_tasks(&project),
         Some(Commands::CompleteTask { project, task_id }) => complete_task(project, *task_id),
+        Some(Commands::DeleteTask { project, task_id }) => delete_task(project, *task_id),
+        Some(Commands::DeleteProject { project }) => delete_project(project),
         None => list_all_projects_and_tasks(),
     }
 }
@@ -195,6 +214,41 @@ fn complete_task(project_name: &str, task_id: u32) {
         } else {
             println!("Task {} not found in project '{}'.", task_id, project_name);
         }
+    } else {
+        println!("Project '{}' not found.", project_name);
+    }
+}
+
+pub fn delete_task(project_name: &str, task_id: u32) {
+    let mut data = load_data();
+    if let Some(project) = data.iter_mut().find(|p| p.name == project_name) {
+        let initial_len = project.tasks.len();
+
+        // Retain tasks that do not have the task_id
+        project.tasks.retain(|t| t.id != task_id);
+        if project.tasks.len() < initial_len {
+            save_data(&data);
+            println!(
+                "Task {} has been deleted from project '{}'.",
+                task_id, project_name
+            );
+        } else {
+            println!("Task {} not found in project '{}'.", task_id, project_name)
+        }
+    } else {
+        println!("Project '{}' not found.", project_name);
+    }
+}
+
+pub fn delete_project(project_name: &str) {
+    let mut data = load_data();
+    let initial_len = data.len();
+
+    // Retain projects that do not have the project_name
+    data.retain(|p| p.name != project_name);
+    if data.len() < initial_len {
+        save_data(&data);
+        println!("Project '{}' has been deleted.", project_name);
     } else {
         println!("Project '{}' not found.", project_name);
     }
